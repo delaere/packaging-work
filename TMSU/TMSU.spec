@@ -1,8 +1,7 @@
 Name:		TMSU
 Version:	0.6.1
-Release:	1%{?dist}
+Release:	1.1%{?dist}
 Summary:	Lets you tag your files and access them through a semantic file-system
-
 Group:		Applications/File
 License:	GPLv3
 URL:		http://tmsu.org
@@ -30,15 +29,10 @@ based upon the tags you set up.
 
 %prep
 %autosetup -p0
-rm -rf %{_builddir}/go
-mkdir  %{_builddir}/go
 
 %build
 export GOPATH=%{_builddir}/go:/usr/share/gocode
-# this is probably not allowed for central builds
-#go get -u github.com/mattn/go-sqlite3
-#go get -u github.com/hanwen/go-fuse/fuse
-/usr/bin/make -O -j4 clean compile dist
+/usr/bin/make compile dist
 
 %install
 mkdir -p %{buildroot}/usr/bin/
