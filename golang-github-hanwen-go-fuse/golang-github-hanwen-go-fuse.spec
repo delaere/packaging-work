@@ -8,7 +8,7 @@
 
 # switch to enable checks.
 # since it requires fuse, it doesn't work in mock
-%global with_check 0
+%bcond_with checks
 
 # standard package information
 Name:           golang-github-hanwen-go-fuse
@@ -25,7 +25,7 @@ Source0:        https://github.com/hanwen/go-fuse/archive/%{commit}/go-fuse-%{sh
 ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 %{arm}}
 # if go_compiler is not set to 1, there is no virtual provide. Use golang instead.
 BuildRequires:  %{?go_compiler:compiler(go-compiler)}%{!?go_compiler:golang}
-%if 0%{?with_check}
+%if %{with checks}
 BuildRequires:  fuse
 %endif
 
@@ -110,7 +110,7 @@ sort -u -o devel.file-list devel.file-list
 # final checks and declarations
 ########################################################
 %check
-%if 0%{?with_check}
+%if %{with checks}
 export GOPATH=%{buildroot}/%{gopath}:%{gopath}
 %gotest github.com/hanwen/go-fuse/benchmark
 %gotest github.com/hanwen/go-fuse/fuse
