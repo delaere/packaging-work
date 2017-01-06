@@ -12,7 +12,8 @@ Patch0:		tmsu.useDestdir.patch
 Patch1:		tmsu.wrong-script-interpreter.patch
 
 BuildRequires:	golang
-BuildRequires:	git
+BuildRequires:	golang-github-mattn-go-sqlite3-devel
+BuildRequires:	golang-github-hanwen-go-fuse-devel
 Requires:	fuse, zsh
 
 %description

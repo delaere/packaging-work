@@ -1,164 +1,138 @@
-%if 0%{?fedora} || 0%{?rhel} == 6
-%global with_devel 1
-%global with_bundled 0
-%global with_debug 0
-# Needs sql running
-%global with_check 0
-%global with_unit_test 1
-%else
-%global with_devel 0
-%global with_bundled 0
-%global with_debug 0
-%global with_check 0
-%global with_unit_test 0
-%endif
+# no binary...
+%global _enable_debug_package 0
+%global debug_package %{nil}
 
-%if 0%{?with_debug}
-%global _dwz_low_mem_die_limit 0
-%else
-%global debug_package   %{nil}
-%endif
-
-%global provider        github
-%global provider_tld    com
-%global project         hanwen
-%global repo            go-fuse
-# https://github.com/hanwen/go-fuse
-%global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
-%global import_path     %{provider_prefix}
-%global commit          6c2b7d8f22c99776f8bfe17cd26d5f744a5b4cdc
+# git commit used for the package
+%global commit          0ad840cf1c835844c01474aba565475b03909a01
 %global shortcommit     %(c=%{commit}; echo ${c:0:7})
 
-Name:           golang-%{provider}-%{project}-%{repo}
-Version:        0.0.0
-Release:        1%{?dist}
-Summary:        Sqlite3 driver for go that using database/SQL
-License:        BSD
-URL:            https://%{provider_prefix}
-Source0:        https://%{provider_prefix}/archive/%{commit}/%{repo}-%{shortcommit}.tar.gz
+# switch to enable checks.
+# since it requires fuse, it doesn't work in mock
+%global with_check 0
 
+# standard package information
+Name:           golang-github-hanwen-go-fuse
+Version:        0
+Release:        1.git%{shortcommit}%{?dist}
+Group:          Development/Libraries
+Summary:        Native bindings for the FUSE kernel module
+License:        BSD
+URL:            https://github.com/hanwen/go-fuse
+Source0:        https://github.com/hanwen/go-fuse/archive/%{commit}/go-fuse-%{shortcommit}.tar.gz
+
+# go Language Architectures (https://fedoraproject.org/wiki/PackagingDrafts/Go)
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
 ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 %{arm}}
-# If go_compiler is not set to 1, there is no virtual provide. Use golang instead.
+# if go_compiler is not set to 1, there is no virtual provide. Use golang instead.
 BuildRequires:  %{?go_compiler:compiler(go-compiler)}%{!?go_compiler:golang}
+%if 0%{?with_check}
+BuildRequires:  fuse
+%endif
 
 %description
 %{summary}
 
-%if 0%{?with_devel}
+########################################################
+# devel package declaration
+########################################################
 %package devel
 Summary:       %{summary}
 BuildArch:     noarch
+Requires:      golang
 
-%if 0%{?with_check}
-%endif
-
-Provides:      golang(%{import_path}) = %{version}-%{release}
-Provides:      golang(%{import_path}/fuse) = %{version}-%{release}
-Provides:      golang(%{import_path}/splice) = %{version}-%{release}
-Provides:      golang(%{import_path}/unionfs) = %{version}-%{release}
-Provides:      golang(%{import_path}/zipfs) = %{version}-%{release}
+Provides:      golang(github.com/hanwen/go-fuse/benchmark) = %{version}-%{release}
+Provides:      golang(github.com/hanwen/go-fuse/fuse) = %{version}-%{release}
+Provides:      golang(github.com/hanwen/go-fuse/fuse/nodefs) = %{version}-%{release}
+Provides:      golang(github.com/hanwen/go-fuse/fuse/pathfs) = %{version}-%{release}
+Provides:      golang(github.com/hanwen/go-fuse/fuse/test) = %{version}-%{release}
+Provides:      golang(github.com/hanwen/go-fuse/splice) = %{version}-%{release}
+Provides:      golang(github.com/hanwen/go-fuse/unionfs) = %{version}-%{release}
+Provides:      golang(github.com/hanwen/go-fuse/zipfs) = %{version}-%{release}
 
 %description devel
 %{summary}
 
-This package contains library source intended for
-building other packages which use import path with
-%{import_path} prefix.
-%endif
+This package contains library sources for go-fuse, the Go language 
+bindings for File System in Userspace (FUSE) utilities.
 
-%if 0%{?with_unit_test} && 0%{?with_devel}
-%package unit-test
-Summary:         Unit tests for %{name} package
-%if 0%{?with_check}
-#Here comes all BuildRequires: PACKAGE the unit tests
-#in %%check section need for running
-%endif
+########################################################
+# unit-test-devel package declaration
+########################################################
+%package unit-test-devel
+Summary:       Unit tests for %{name} package
+BuildArch:     noarch
+Requires:      %{name}-devel = %{version}-%{release}
 
-# test subpackage tests code from devel subpackage
-Requires:        %{name}-devel = %{version}-%{release}
-
-%description unit-test
+%description unit-test-devel
 %{summary}
 
-This package contains unit tests for project
-providing packages with %{import_path} prefix.
-%endif
+This package contains unit tests for go-fuse, the Go language
+bindings for File System in Userspace (FUSE) utilities.
 
+########################################################
+# prepare and install files
+########################################################
 %prep
-%setup -q -n %{repo}-%{commit}
+%setup -q -n go-fuse-%{commit}
 
 %build
 
 %install
 # source codes for building projects
-%if 0%{?with_devel}
-install -d -p %{buildroot}/%{gopath}/src/%{import_path}/
-echo "%%dir %%{gopath}/src/%%{import_path}/." >> devel.file-list
+install -d -p %{buildroot}/%{gopath}/src/github.com/hanwen/go-fuse/
 # find all *.go but no *_test.go files and generate devel.file-list
 for file in $(find . -iname "*.go" \! -iname "*_test.go") ; do
-    echo "%%dir %%{gopath}/src/%%{import_path}/$(dirname $file)" >> devel.file-list
-    install -d -p %{buildroot}/%{gopath}/src/%{import_path}/$(dirname $file)
-    cp -pav $file %{buildroot}/%{gopath}/src/%{import_path}/$file
-    echo "%%{gopath}/src/%%{import_path}/$file" >> devel.file-list
+    install -d -p %{buildroot}/%{gopath}/src/github.com/hanwen/go-fuse/$(dirname $file)
+    cp -pav $file %{buildroot}/%{gopath}/src/github.com/hanwen/go-fuse/$file
+    echo "%%{gopath}/src/github.com/hanwen/go-fuse/$file" >> devel.file-list
 done
-for file in $(find . -iname "*.c" -or -iname "*.h") ; do
-    echo "%%dir %%{gopath}/src/%%{import_path}/$(dirname $file)" >> devel.file-list
-    install -d -p %{buildroot}/%{gopath}/src/%{import_path}/$(dirname $file)
-    cp -pav $file %{buildroot}/%{gopath}/src/%{import_path}/$file
-    echo "%%{gopath}/src/%%{import_path}/$file" >> devel.file-list
-done
-%endif
 
 # testing files for this project
-%if 0%{?with_unit_test} && 0%{?with_devel}
-install -d -p %{buildroot}/%{gopath}/src/%{import_path}/
+install -d -p %{buildroot}/%{gopath}/src/github.com/hanwen/go-fuse/
 # find all *_test.go files and generate unit-test.file-list
 for file in $(find . -iname "*_test.go"); do
-    echo "%%dir %%{gopath}/src/%%{import_path}/$(dirname $file)" >> devel.file-list
-    install -d -p %{buildroot}/%{gopath}/src/%{import_path}/$(dirname $file)
-    cp -pav $file %{buildroot}/%{gopath}/src/%{import_path}/$file
-    echo "%%{gopath}/src/%%{import_path}/$file" >> unit-test.file-list
+    echo "%%dir %%{gopath}/src/github.com/hanwen/go-fuse/$(dirname $file)" >> devel.file-list
+    install -d -p %{buildroot}/%{gopath}/src/github.com/hanwen/go-fuse/$(dirname $file)
+    cp -pav $file %{buildroot}/%{gopath}/src/github.com/hanwen/go-fuse/$file
+    echo "%%{gopath}/src/github.com/hanwen/go-fuse/$file" >> unit-test-devel.file-list
 done
-%endif
 
-%if 0%{?with_devel}
+# directories
+echo "%%dir %%{gopath}/src/github.com/hanwen/go-fuse/." >> devel.file-list
+for reldir in $(find . -type d); do
+    echo "%%dir %%{gopath}/src/github.com/hanwen/go-fuse/$reldir" >> devel.file-list
+done
+
+# final sort of the list of files
 sort -u -o devel.file-list devel.file-list
-%endif
 
+########################################################
+# final checks and declarations
+########################################################
 %check
-%if 0%{?with_check} && 0%{?with_unit_test} && 0%{?with_devel}
-%if ! 0%{?with_bundled}
+%if 0%{?with_check}
 export GOPATH=%{buildroot}/%{gopath}:%{gopath}
-%else
-export GOPATH=%{buildroot}/%{gopath}:$(pwd)/Godeps/_workspace:%{gopath}
+%gotest github.com/hanwen/go-fuse/benchmark
+%gotest github.com/hanwen/go-fuse/fuse
+%gotest github.com/hanwen/go-fuse/fuse/nodefs
+%gotest github.com/hanwen/go-fuse/fuse/pathfs
+%gotest github.com/hanwen/go-fuse/fuse/test
+%gotest github.com/hanwen/go-fuse/splice
+#these two tests are known not to work.
+#%%gotest github.com/hanwen/go-fuse/unionfs
+#%%gotest github.com/hanwen/go-fuse/zipfs
 %endif
 
-%if ! 0%{?gotest:1}
-%global gotest go test
-%endif
-
-%gotest %{import_path}
-%endif
-
-#define license tag if not already defined
-%{!?_licensedir:%global license %doc}
-
-%if 0%{?with_devel}
 %files devel -f devel.file-list
 %license LICENSE
-%doc README
-%dir %{gopath}/src/%{provider}.%{provider_tld}/%{project}
-%endif
+%doc README AUTHORS
+%dir %{gopath}/src/github.com/hanwen
 
-%if 0%{?with_unit_test} && 0%{?with_devel}
-%files unit-test -f unit-test.file-list
+%files unit-test-devel -f unit-test-devel.file-list
 %license LICENSE
-%doc README
-%endif
+%doc README AUTHORS
 
 %changelog
-* Mon Dec 19 2016 Christophe Delaere <christophe.delaere@gmail.com> - 0.0.0-1
-- Initial packaging.
-
+* Wed Jan 04 2017 Christophe Delaere <christophe.delaere@gmail.com> - 0-1.git0ad840c
+- First package for Fedora
 
